@@ -13,7 +13,7 @@ Streaming		- C++ style output
 
 ## Hardware
 
-Supports the ESP32 CAN controller peripheral
+Supports the ESP32 CAN controller peripheral. An separate 3.3V CAN transceiver is required.
 
 ## Documentation
 

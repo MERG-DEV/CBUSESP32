@@ -201,6 +201,8 @@ bool CBUSESP32::sendMessage(CANFrame *msg, bool rtr, bool ext) {
 //
 
 void CBUSESP32::printStatus(void) {
+
+  // !! todo
   return;
 }
 
