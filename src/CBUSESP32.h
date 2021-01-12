@@ -57,25 +57,25 @@ static const byte NUM_BUFFS = 20;                            // default value
 
 class CBUSESP32 : public CBUS {
 
-  public:
+public:
 
-    CBUSESP32();
+  CBUSESP32();
 
-    // these methods are declared virtual in the base class and must be implemented by the derived class
-    bool begin(void);
-    bool available(void);
-    CANFrame getNextMessage(void);
-    bool sendMessage(CANFrame *msg, bool rtr = false, bool ext = false);    // note default arguments
-    void reset(void);
-    void setNumBuffers(byte num);
-    void setPins(byte rxpin, byte rxPin);
+  // these methods are declared virtual in the base class and must be implemented by the derived class
+  bool begin(void);
+  bool available(void);
+  CANFrame getNextMessage(void);
+  bool sendMessage(CANFrame *msg, bool rtr = false, bool ext = false);    // note default arguments
+  void reset(void);
+  void setNumBuffers(byte num);
+  void setPins(byte rxpin, byte rxPin);
 
-    // these methods are specific to this implementation
-    // they are not declared or implemented by the base CBUS class
-    void printStatus(void);
+  // these methods are specific to this implementation
+  // they are not declared or implemented by the base CBUS class
+  void printStatus(void);
 
 private:
-    byte _txPin, _rxPin;
-    byte numbuffers;
+  byte _txPin, _rxPin;
+  byte numbuffers;
 
 };

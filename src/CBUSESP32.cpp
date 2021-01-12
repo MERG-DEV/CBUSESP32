@@ -93,7 +93,7 @@ bool CBUSESP32::begin(void) {
   esp_err_t iret = can_driver_install(&g_config, &t_config, &f_config);
 
   if (iret != ESP_OK) {
-    Serial << F("Error installing CAN driver, ret = ") << iret << endl;
+    // Serial << F("Error installing CAN driver, ret = ") << iret << endl;
     return false;
   }
 
@@ -101,7 +101,7 @@ bool CBUSESP32::begin(void) {
   iret = can_start();
 
   if (iret != ESP_OK) {
-    Serial << F("Error starting CAN driver, ret = ") << iret << endl;
+    // Serial << F("Error starting CAN driver, ret = ") << iret << endl;
     return false;
   }
 
@@ -175,7 +175,7 @@ bool CBUSESP32::sendMessage(CANFrame *msg, bool rtr, bool ext) {
   makeHeader(msg);                      // set the CBUS header - CANID and priority bits
   message.identifier = msg->id;
   message.data_length_code = msg->len;
-  
+
   if (rtr) {
     message.flags |= CAN_MSG_FLAG_RTR;
   }
