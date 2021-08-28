@@ -52,12 +52,15 @@ extern CBUSConfig config;
 can_message_t buffered_message;
 bool have_buffered_message = false;
 
+void format_message(CANFrame *msg);
+
 //
 /// constructor
 //
 
 CBUSESP32::CBUSESP32() {
-  numbuffers = NUM_BUFFS;
+  _num_rx_buffers = NUM_BUFFS;
+  _num_tx_buffers = NUM_BUFFS;
   eventhandler = NULL;
   framehandler = NULL;
   _txPin = ESP32_TXPIN;
@@ -68,7 +71,9 @@ CBUSESP32::CBUSESP32() {
 /// initialise the CAN controller and buffers, and attach the ISR
 //
 
-bool CBUSESP32::begin(void) {
+bool CBUSESP32::begin(bool poll) {
+
+  esp_err_t iret;
 
   _numMsgsSent = 0;
   _numMsgsRcvd = 0;
@@ -81,8 +86,8 @@ bool CBUSESP32::begin(void) {
   g_config.rx_io = (gpio_num_t)_rxPin;
   g_config.clkout_io = (gpio_num_t)CAN_IO_UNUSED;
   g_config.bus_off_io = (gpio_num_t)CAN_IO_UNUSED;
-  g_config.tx_queue_len = numbuffers;
-  g_config.rx_queue_len = numbuffers;
+  g_config.tx_queue_len = _num_tx_buffers;
+  g_config.rx_queue_len = _num_rx_buffers;
   g_config.alerts_enabled = CAN_ALERT_ALL;
   g_config.clkout_divider = 0;
 
@@ -90,10 +95,25 @@ bool CBUSESP32::begin(void) {
   const can_filter_config_t f_config = CAN_FILTER_CONFIG_ACCEPT_ALL();
 
   // install CAN driver
-  esp_err_t iret = can_driver_install(&g_config, &t_config, &f_config);
+  iret = can_driver_install(&g_config, &t_config, &f_config);
 
   if (iret != ESP_OK) {
-    // Serial << F("Error installing CAN driver, ret = ") << iret << endl;
+    Serial << F("> Error installing CAN driver, ret = ") << iret << endl;
+
+    switch (iret) {
+    case ESP_ERR_INVALID_ARG:
+      Serial << F("> Arguments are invalid") << endl;
+      break;
+    case ESP_ERR_NO_MEM:
+      Serial << F("> Insufficient memory") << endl;
+      break;
+    case ESP_ERR_INVALID_STATE:
+      Serial << F("> Driver is already installed") << endl;
+      break;
+    default:
+      Serial << F("> Unknown error") << endl;
+      break;
+    }
     return false;
   }
 
@@ -101,9 +121,21 @@ bool CBUSESP32::begin(void) {
   iret = can_start();
 
   if (iret != ESP_OK) {
-    // Serial << F("Error starting CAN driver, ret = ") << iret << endl;
+    Serial << F("> Error starting CAN driver, ret = ") << iret << endl;
+
+    switch (iret) {
+    case ESP_ERR_INVALID_STATE:
+      Serial << F("> Driver is not in running state, or is not installed") << endl;
+      break;
+    default:
+      Serial << F("> Unknown error") << endl;
+      break;
+    }
+
     return false;
   }
+
+  Serial << F("> CAN driver installed and started ok") << endl;
 
   return true;
 }
@@ -155,6 +187,8 @@ CANFrame CBUSESP32::getNextMessage(void) {
     have_buffered_message = false;  // we've taken it
   }
 
+  format_message(&_msg);
+
   // if available() hasn't been called and there is no buffered message, this returns an empty message
   // not ideal, but won't confuse the CBUS processing
   return _msg;
@@ -164,7 +198,7 @@ CANFrame CBUSESP32::getNextMessage(void) {
 /// send a CBUS message
 //
 
-bool CBUSESP32::sendMessage(CANFrame *msg, bool rtr, bool ext) {
+bool CBUSESP32::sendMessage(CANFrame *msg, bool rtr, bool ext, byte priority) {
 
   // caller must populate the message data
   // this method will create the correct frame header (CAN ID and priority bits)
@@ -172,7 +206,9 @@ bool CBUSESP32::sendMessage(CANFrame *msg, bool rtr, bool ext) {
 
   can_message_t message;                // ESP32 CAN message type
 
-  makeHeader(msg);                      // set the CBUS header - CANID and priority bits
+  format_message(msg);
+
+  makeHeader(msg, priority);                      // set the CBUS header - CANID and priority bits
   message.identifier = msg->id;
   message.data_length_code = msg->len;
 
@@ -189,8 +225,10 @@ bool CBUSESP32::sendMessage(CANFrame *msg, bool rtr, bool ext) {
   esp_err_t ret = can_transmit(&message, (TickType_t)0);
 
   if (ret == ESP_OK) {
+    Serial << F("> sent CAN message ok") << endl;
     return true;
   } else {
+    Serial << F("> error sending CAN message") << endl;
     return false;
   }
 
@@ -229,6 +267,28 @@ void CBUSESP32::setPins(byte txPin, byte rxPin) {
 /// set the depth of the TX and RX queues
 //
 
-void CBUSESP32::setNumBuffers(byte num) {
-  numbuffers = num;
+void CBUSESP32::setNumBuffers(byte num_rx_buffers, byte num_tx_buffers) {
+  _num_rx_buffers = num_rx_buffers;
+  _num_tx_buffers = num_tx_buffers;
+}
+
+//
+/// utility
+//
+
+void format_message(CANFrame *msg) {
+
+  char mbuff[80], dbuff[8];
+
+  sprintf(mbuff, "[%03d] [%d] [", (msg->id & 0x7f), msg->len);
+
+  for (byte i = 0; i < msg->len; i++) {
+    sprintf(dbuff, " %02x", msg->data[i]);
+    strcat(mbuff, dbuff);
+  }
+
+  strcat(mbuff, " ]");
+  Serial << F("> ") << mbuff << endl;
+
+  return;
 }
