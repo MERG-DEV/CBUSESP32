@@ -37,6 +37,7 @@
 
 
 #include <WiFi.h>               // main ESP32 header
+#include <SPI.h>
 #include "driver/can.h"         // ESP32 CAN driver header
 
 // 3rd party libraries
@@ -61,17 +62,18 @@ void format_message(CANFrame *msg);
 CBUSESP32::CBUSESP32() {
   _num_rx_buffers = NUM_BUFFS;
   _num_tx_buffers = NUM_BUFFS;
-  eventhandler = NULL;
-  framehandler = NULL;
   _txPin = ESP32_TXPIN;
   _rxPin = ESP32_RXPIN;
+
+  eventhandler = NULL;
+  framehandler = NULL;
 }
 
 //
 /// initialise the CAN controller and buffers, and attach the ISR
 //
 
-bool CBUSESP32::begin(bool poll) {
+bool CBUSESP32::begin(bool poll, SPIClass spi) {
 
   esp_err_t iret;
 
@@ -82,8 +84,8 @@ bool CBUSESP32::begin(bool poll) {
   can_general_config_t g_config;
 
   g_config.mode = CAN_MODE_NORMAL;
-  g_config.tx_io = (gpio_num_t)_txPin;
-  g_config.rx_io = (gpio_num_t)_rxPin;
+  g_config.tx_io = _txPin;
+  g_config.rx_io = _rxPin;
   g_config.clkout_io = (gpio_num_t)CAN_IO_UNUSED;
   g_config.bus_off_io = (gpio_num_t)CAN_IO_UNUSED;
   g_config.tx_queue_len = _num_tx_buffers;
@@ -91,8 +93,8 @@ bool CBUSESP32::begin(bool poll) {
   g_config.alerts_enabled = CAN_ALERT_ALL;
   g_config.clkout_divider = 0;
 
-  const can_timing_config_t t_config = CAN_TIMING_CONFIG_125KBITS();
-  const can_filter_config_t f_config = CAN_FILTER_CONFIG_ACCEPT_ALL();
+  can_timing_config_t t_config = CAN_TIMING_CONFIG_125KBITS();
+  can_filter_config_t f_config = CAN_FILTER_CONFIG_ACCEPT_ALL();
 
   // install CAN driver
   iret = can_driver_install(&g_config, &t_config, &f_config);
@@ -114,7 +116,7 @@ bool CBUSESP32::begin(bool poll) {
       Serial << F("> Unknown error") << endl;
       break;
     }
-    return false;
+    // return false;
   }
 
   // start CAN driver
@@ -132,10 +134,12 @@ bool CBUSESP32::begin(bool poll) {
       break;
     }
 
-    return false;
+    // return false;
   }
 
-  Serial << F("> CAN driver installed and started ok") << endl;
+  if (iret == ESP_OK) {
+    Serial << F("> CAN driver installed and started ok") << endl;
+  }
 
   return true;
 }
