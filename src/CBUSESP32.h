@@ -62,6 +62,7 @@ class CBUSESP32 : public CBUSbase {
 public:
 
   CBUSESP32();
+  CBUSESP32(CBUSConfig *the_config);
 
   // these methods are declared virtual in the base class and must be implemented by the derived class
   bool begin(bool poll = false, SPIClass spi = SPI);    // note default args

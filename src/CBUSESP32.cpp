@@ -69,6 +69,16 @@ CBUSESP32::CBUSESP32() {
   framehandler = NULL;
 }
 
+CBUSESP32::CBUSESP32(CBUSConfig *the_config) : CBUSbase(the_config) {
+  _num_rx_buffers = NUM_BUFFS;
+  _num_tx_buffers = NUM_BUFFS;
+  _txPin = ESP32_TXPIN;
+  _rxPin = ESP32_RXPIN;
+
+  eventhandler = NULL;
+  framehandler = NULL;
+}
+
 //
 /// initialise the CAN controller and buffers, and attach the ISR
 //
@@ -84,8 +94,8 @@ bool CBUSESP32::begin(bool poll, SPIClass spi) {
   can_general_config_t g_config;
 
   g_config.mode = CAN_MODE_NORMAL;
-  g_config.tx_io = _txPin;
-  g_config.rx_io = _rxPin;
+  g_config.tx_io = (gpio_num_t)_txPin;
+  g_config.rx_io = (gpio_num_t)_rxPin;
   g_config.clkout_io = (gpio_num_t)CAN_IO_UNUSED;
   g_config.bus_off_io = (gpio_num_t)CAN_IO_UNUSED;
   g_config.tx_queue_len = _num_tx_buffers;
@@ -191,7 +201,7 @@ CANFrame CBUSESP32::getNextMessage(void) {
     have_buffered_message = false;  // we've taken it
   }
 
-  format_message(&_msg);
+  // format_message(&_msg);
 
   // if available() hasn't been called and there is no buffered message, this returns an empty message
   // not ideal, but won't confuse the CBUS processing
@@ -210,7 +220,7 @@ bool CBUSESP32::sendMessage(CANFrame *msg, bool rtr, bool ext, byte priority) {
 
   can_message_t message;                // ESP32 CAN message type
 
-  format_message(msg);
+  // format_message(msg);
 
   makeHeader(msg, priority);                      // set the CBUS header - CANID and priority bits
   message.identifier = msg->id;
