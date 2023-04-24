@@ -35,22 +35,14 @@
 
 */
 
-
-#include <WiFi.h>               // main ESP32 header
-#include <SPI.h>
-#include "driver/can.h"         // ESP32 CAN driver header
-
-// 3rd party libraries
-#include <Streaming.h>
-
 // CBUS ESP32 library
 #include <CBUSESP32.h>
 
 // CBUS configuration object, declared externally
-extern CBUSConfig config;
+// extern CBUSConfig config;
 
 // buffered message from the RX queue
-can_message_t buffered_message;
+twai_message_t buffered_message;
 bool have_buffered_message = false;
 
 void format_message(CANFrame *msg);
@@ -91,26 +83,26 @@ bool CBUSESP32::begin(bool poll, SPIClass spi) {
   _numMsgsRcvd = 0;
 
   // configure CAN bus driver
-  can_general_config_t g_config;
+  twai_general_config_t g_config;
 
-  g_config.mode = CAN_MODE_NORMAL;
+  g_config.mode = TWAI_MODE_NORMAL;
   g_config.tx_io = (gpio_num_t)_txPin;
   g_config.rx_io = (gpio_num_t)_rxPin;
-  g_config.clkout_io = (gpio_num_t)CAN_IO_UNUSED;
-  g_config.bus_off_io = (gpio_num_t)CAN_IO_UNUSED;
+  g_config.clkout_io = (gpio_num_t)TWAI_IO_UNUSED;
+  g_config.bus_off_io = (gpio_num_t)TWAI_IO_UNUSED;
   g_config.tx_queue_len = _num_tx_buffers;
   g_config.rx_queue_len = _num_rx_buffers;
-  g_config.alerts_enabled = CAN_ALERT_ALL;
+  g_config.alerts_enabled = TWAI_ALERT_ALL;
   g_config.clkout_divider = 0;
 
-  can_timing_config_t t_config = CAN_TIMING_CONFIG_125KBITS();
-  can_filter_config_t f_config = CAN_FILTER_CONFIG_ACCEPT_ALL();
+  twai_timing_config_t t_config = TWAI_TIMING_CONFIG_125KBITS();
+  twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
   // install CAN driver
-  iret = can_driver_install(&g_config, &t_config, &f_config);
+  iret = twai_driver_install(&g_config, &t_config, &f_config);
 
   if (iret != ESP_OK) {
-    Serial << F("> Error installing CAN driver, ret = ") << iret << endl;
+    Serial << F("> Error installing TWAI driver, ret = ") << iret << endl;
 
     switch (iret) {
     case ESP_ERR_INVALID_ARG:
@@ -126,14 +118,15 @@ bool CBUSESP32::begin(bool poll, SPIClass spi) {
       Serial << F("> Unknown error") << endl;
       break;
     }
-    // return false;
+
+    return false;
   }
 
   // start CAN driver
-  iret = can_start();
+  iret = twai_start();
 
   if (iret != ESP_OK) {
-    Serial << F("> Error starting CAN driver, ret = ") << iret << endl;
+    Serial << F("> Error starting TWAI driver, ret = ") << iret << endl;
 
     switch (iret) {
     case ESP_ERR_INVALID_STATE:
@@ -144,11 +137,11 @@ bool CBUSESP32::begin(bool poll, SPIClass spi) {
       break;
     }
 
-    // return false;
+    return false;
   }
 
   if (iret == ESP_OK) {
-    Serial << F("> CAN driver installed and started ok") << endl;
+    Serial << F("> TWAI driver installed and started ok") << endl;
   }
 
   return true;
@@ -162,7 +155,7 @@ bool CBUSESP32::available(void) {
 
   /// the ESP32 CAN API has no check/peek function, so we need to receive the next message and buffer it
 
-  can_message_t message;      // ESP32 CAN message type
+  twai_message_t message;      // ESP32 TWAI message type
 
   // buffered message still there from last check, so don't check again
   if (have_buffered_message) {
@@ -170,11 +163,11 @@ bool CBUSESP32::available(void) {
   }
 
   // no buffered message, check the driver receive queue, with no blocking
-  esp_err_t ret = can_receive(&message, (TickType_t)0);
+  esp_err_t ret = twai_receive(&message, (TickType_t)0);
 
   // got one, buffer it
   if (ret == ESP_OK) {
-    memcpy(&buffered_message, &message, sizeof(can_message_t));
+    memcpy(&buffered_message, &message, sizeof(twai_message_t));
     have_buffered_message = true;
   } else {
     // queue is empty or receive error
@@ -194,9 +187,10 @@ CANFrame CBUSESP32::getNextMessage(void) {
   if (have_buffered_message) {
     _msg.id = buffered_message.identifier;
     _msg.len = buffered_message.data_length_code;
-    _msg.rtr = buffered_message.flags & CAN_MSG_FLAG_RTR;
-    _msg.ext = buffered_message.flags & CAN_MSG_FLAG_EXTD;
+    _msg.rtr = buffered_message.flags & TWAI_MSG_FLAG_RTR;
+    _msg.ext = buffered_message.flags & TWAI_MSG_FLAG_EXTD;
     memcpy(_msg.data, buffered_message.data, buffered_message.data_length_code);
+
     ++_numMsgsRcvd;
     have_buffered_message = false;  // we've taken it
   }
@@ -218,7 +212,7 @@ bool CBUSESP32::sendMessage(CANFrame *msg, bool rtr, bool ext, byte priority) {
   // this method will create the correct frame header (CAN ID and priority bits)
   // rtr and ext default to false unless arguments are supplied - see method definition in .h
 
-  can_message_t message;                // ESP32 CAN message type
+  twai_message_t message;                // ESP32 CAN message type
 
   // format_message(msg);
 
@@ -227,22 +221,22 @@ bool CBUSESP32::sendMessage(CANFrame *msg, bool rtr, bool ext, byte priority) {
   message.data_length_code = msg->len;
 
   if (rtr) {
-    message.flags |= CAN_MSG_FLAG_RTR;
+    message.flags |= TWAI_MSG_FLAG_RTR;
   }
 
   if (ext) {
-    message.flags |= CAN_MSG_FLAG_EXTD;
+    message.flags |= TWAI_MSG_FLAG_EXTD;
   }
 
   memcpy(message.data, msg->data, msg->len);
 
-  esp_err_t ret = can_transmit(&message, (TickType_t)0);
+  esp_err_t ret = twai_transmit(&message, (TickType_t)0);
 
   if (ret == ESP_OK) {
-    Serial << F("> sent CAN message ok") << endl;
+    Serial << F("> sent TWAI message ok") << endl;
     return true;
   } else {
-    Serial << F("> error sending CAN message") << endl;
+    Serial << F("> error sending TWAI message") << endl;
     return false;
   }
 
@@ -263,8 +257,8 @@ void CBUSESP32::printStatus(void) {
 //
 
 void CBUSESP32::reset(void) {
-  can_stop();
-  can_driver_uninstall();
+  twai_stop();
+  twai_driver_uninstall();
   begin();
 }
 

@@ -49,12 +49,9 @@
 #include <CBUSParams.h>             // module parameters
 #include <cbusdefs.h>               // MERG CBUS constants
 
-// local header
-#include "defs.h"
-
 // CBUS objects
-CBUSConfig myconfig;                // configuration object
-CBUSESP32 CBUS(&myconfig);          // CBUS object
+CBUSConfig module_config;           // configuration object
+CBUSESP32 CBUS(&module_config);     // CBUS object
 CBUSLED ledGrn, ledYlw;             // two LED objects
 CBUSSwitch pb_switch;               // switch object
 
@@ -74,23 +71,23 @@ void setup() {
   Serial.begin (115200);
   Serial << "> ** CBUS empty test module v1 **" << endl;
 
-  // set myconfig layout parameters
-  myconfig.EE_NVS_START = 10;
-  myconfig.EE_NUM_NVS = 10;
-  myconfig.EE_EVENTS_START = 50;
-  myconfig.EE_MAX_EVENTS = 64;
-  myconfig.EE_NUM_EVS = 1;
-  myconfig.EE_BYTES_PER_EVENT = (myconfig.EE_NUM_EVS + 4);
+  // set config layout parameters
+  module_config.EE_NVS_START = 10;
+  module_config.EE_NUM_NVS = 10;
+  module_config.EE_EVENTS_START = 50;
+  module_config.EE_MAX_EVENTS = 64;
+  module_config.EE_NUM_EVS = 1;
+  module_config.EE_BYTES_PER_EVENT = (module_config.EE_NUM_EVS + 4);
 
-  // initialise and load myconfiguration
-  myconfig.setEEPROMtype(EEPROM_INTERNAL);
-  myconfig.begin();
+  // initialise and load configuration
+  module_config.setEEPROMtype(EEPROM_INTERNAL);
+  module_config.begin();
 
-  Serial << "> mode = " << (myconfig.FLiM ? "FLiM" : "SLiM") << "> NN = " << myconfig.nodeNum << endl;
+  Serial << "> mode = " << (module_config.FLiM ? "FLiM" : "SLiM") << "> NN = " << module_config.nodeNum << endl;
 
-  CBUSParams params(myconfig);
-  params.setVersion(VER_MAJ, VER_MIN, VER_BETA);
-  params.setModuleId(MODULE_ID);
+  CBUSParams params(module_config);
+  params.setVersion(1, 0, 0);
+  params.setModuleId(100);
   params.setFlags(PF_FLiM | PF_COMBI);
 
   // assign to CBUS
@@ -98,18 +95,18 @@ void setup() {
   CBUS.setName(mname);
 
   // initialise CBUS LEDs
-  ledGrn.setPin(LED_GRN);
-  ledYlw.setPin(LED_YLW);
+  ledGrn.setPin(4);
+  ledYlw.setPin(5);
 
   // initialise CBUS switch
-  pb_switch.setPin(SWITCH0, LOW);
+  pb_switch.setPin(6, LOW);
 
   // module reset - if switch is depressed at startup and module is in SLiM mode
   pb_switch.run();
 
-  if (pb_switch.isPressed() && !myconfig.FLiM) {
+  if (pb_switch.isPressed() && !module_config.FLiM) {
     Serial << "> switch was pressed at startup in SLiM mode" << endl;
-    myconfig.resetModule(ledGrn, ledYlw, pb_switch);
+    module_config.resetModule(ledGrn, ledYlw, pb_switch);
   }
 
   // register our CBUS event handler, to receive event messages of learned accessory events
@@ -123,12 +120,13 @@ void setup() {
   CBUS.setSwitch(pb_switch);
 
   // set CBUS LEDs to indicate the current mode
-  CBUS.indicateMode(myconfig.FLiM);
+  CBUS.indicateMode(module_config.FLiM);
 
-  // start CAN bus and CBUS message processing
+  // set CAN pins and queue sizes
   CBUS.setPins(16, 17);
   CBUS.setNumBuffers(64, 64);
 
+  // start CAN bus and CBUS message processing
   if (!CBUS.begin()) {
     Serial << "> error starting CBUS" << endl;
   }
@@ -148,7 +146,6 @@ void loop() {
   //
 
   CBUS.process();
-
 }
 
 //
@@ -159,7 +156,7 @@ void loop() {
 
 void eventhandler(byte index, CANFrame *msg) {
 
-  // as an example, display the opcode and the first EV of this event
+  // as an example, display the opcode of this event
 
   Serial << "> event handler: index = " << index << ", opcode = 0x" << _HEX(msg->data[0]) << endl;
   return;
@@ -167,7 +164,7 @@ void eventhandler(byte index, CANFrame *msg) {
 
 //
 /// user-defined frame processing function
-/// called from the CBUS library for selected CAN frame received
+/// called from the CBUS library when selected CAN frames received
 /// it receives a pointer to the received CAN frame
 //
 
@@ -176,7 +173,7 @@ void framehandler(CANFrame *msg) {
   // as an example, format and display the received frame
   char fbuff[40], dbuff[8];
 
-  sprintf(fbuff, "[%03lu] [%d] [ ", (msg->id & 0x7f), msg->len);
+  sprintf(fbuff, "[%03u] [%u] [ ", (msg->id & 0x7f), msg->len);
 
   for (byte d = 0; d < msg->len; d++) {
     sprintf(dbuff, "%02x ", msg->data[d]);

@@ -38,16 +38,22 @@
 #pragma once
 
 // header files
+#include <WiFi.h>               // main ESP32 header
+#include "driver/twai.h"        // ESP32 CAN driver header
 
+// 3rd party library headers
+#include <Streaming.h>
+
+// standard Arduino library headers
 #include <SPI.h>
 
+// CBUS library headers
 #include <CBUS.h>               // abstract base class
 #include <CBUSconfig.h>         // CBUS config class
 #include <CBUSLED.h>            // CBUS LED class
 #include <CBUSswitch.h>         // CBUS switch class
 
 // constants
-
 static const byte ESP32_TXPIN = 16;                          // CAN TX pin
 static const byte ESP32_RXPIN = 17;                          // CAN RX pin
 static const byte NUM_BUFFS = 20;                            // default value
