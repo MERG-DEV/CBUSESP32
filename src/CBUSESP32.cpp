@@ -75,7 +75,10 @@ CBUSESP32::CBUSESP32(CBUSConfig *the_config) : CBUSbase(the_config) {
 /// initialise the CAN controller and buffers, and attach the ISR
 //
 
-bool CBUSESP32::begin(bool poll, SPIClass spi) {
+bool CBUSESP32::begin(bool poll, SPIClass& spi) {
+
+  (void)poll;
+  (void)spi;
 
   esp_err_t iret;
 
