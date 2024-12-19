@@ -75,10 +75,7 @@ CBUSESP32::CBUSESP32(CBUSConfig *the_config) : CBUSbase(the_config) {
 /// initialise the CAN controller and buffers, and attach the ISR
 //
 
-bool CBUSESP32::begin(bool poll, SPIClass& spi) {
-
-  (void)poll;
-  (void)spi;
+bool CBUSESP32::begin(bool poll, SPIClass spi) {
 
   esp_err_t iret;
 
@@ -215,34 +212,51 @@ bool CBUSESP32::sendMessage(CANFrame *msg, bool rtr, bool ext, byte priority) {
   // this method will create the correct frame header (CAN ID and priority bits)
   // rtr and ext default to false unless arguments are supplied - see method definition in .h
 
+  bool ok;
+
+  msg->rtr = rtr;
+  msg->ext = ext;
+  makeHeader(msg, priority);                      // set the CBUS header - CANID and priority bits
+
+  ok = sendMessageNoUpdate(msg);
+
+  // call user transmit handler
+  if (transmithandler != nullptr) {
+    (void)(*transmithandler)(msg);
+  }
+
+  return ok;
+}
+
+//
+///
+//
+
+bool CBUSESP32::sendMessageNoUpdate(CANFrame *msg) {
+
   twai_message_t message;                // ESP32 CAN message type
 
-  // format_message(msg);
-
-  makeHeader(msg, priority);                      // set the CBUS header - CANID and priority bits
   message.identifier = msg->id;
   message.data_length_code = msg->len;
+  memcpy(message.data, msg->data, msg->len);
 
-  if (rtr) {
+  if (msg->rtr) {
     message.flags |= TWAI_MSG_FLAG_RTR;
   }
 
-  if (ext) {
+  if (msg->ext) {
     message.flags |= TWAI_MSG_FLAG_EXTD;
   }
-
-  memcpy(message.data, msg->data, msg->len);
 
   esp_err_t ret = twai_transmit(&message, (TickType_t)0);
 
   if (ret == ESP_OK) {
-    Serial << F("> sent TWAI message ok") << endl;
+    // Serial << F("> sent TWAI message ok") << endl;
     return true;
   } else {
-    Serial << F("> error sending TWAI message") << endl;
+    // Serial << F("> error sending TWAI message") << endl;
     return false;
   }
-
 }
 
 //
