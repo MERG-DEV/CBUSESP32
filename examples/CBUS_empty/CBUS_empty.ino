@@ -38,7 +38,6 @@
 
 */
 
-#include <WiFi.h>
 #include <Streaming.h>
 
 // CBUS library header files
@@ -73,10 +72,10 @@ void setup() {
 
   // set config layout parameters
   module_config.EE_NVS_START = 10;
-  module_config.EE_NUM_NVS = 10;
-  module_config.EE_EVENTS_START = 50;
+  module_config.EE_NUM_NVS = 20;
+  module_config.EE_EVENTS_START = 30;
   module_config.EE_MAX_EVENTS = 64;
-  module_config.EE_NUM_EVS = 1;
+  module_config.EE_NUM_EVS = 2;
   module_config.EE_BYTES_PER_EVENT = (module_config.EE_NUM_EVS + 4);
 
   // initialise and load configuration
@@ -87,7 +86,7 @@ void setup() {
 
   CBUSParams params(module_config);
   params.setVersion(1, 0, 0);
-  params.setModuleId(100);
+  params.setModuleId(111);
   params.setFlags(PF_FLiM | PF_COMBI);
 
   // assign to CBUS
@@ -173,7 +172,7 @@ void framehandler(CANFrame *msg) {
   // as an example, format and display the received frame
   char fbuff[40], dbuff[8];
 
-  sprintf(fbuff, "[%03u] [%u] [ ", (msg->id & 0x7f), msg->len);
+  sprintf(fbuff, "[%03lu] [%u] [ ", (msg->id & 0x7f), msg->len);
 
   for (byte d = 0; d < msg->len; d++) {
     sprintf(dbuff, "%02x ", msg->data[d]);

@@ -75,7 +75,7 @@ CBUSESP32::CBUSESP32(CBUSConfig *the_config) : CBUSbase(the_config) {
 /// initialise the CAN controller and buffers, and attach the ISR
 //
 
-bool CBUSESP32::begin(bool poll, SPIClass spi) {
+bool CBUSESP32::begin(bool poll, SPIClass& spi) {
 
   esp_err_t iret;
 
@@ -305,7 +305,7 @@ void format_message(CANFrame *msg) {
 
   char mbuff[80], dbuff[8];
 
-  sprintf(mbuff, "[%03d] [%d] [", (msg->id & 0x7f), msg->len);
+  sprintf(mbuff, "[%03lu] [%u] [", (msg->id & 0x7f), msg->len);
 
   for (byte i = 0; i < msg->len; i++) {
     sprintf(dbuff, " %02x", msg->data[i]);
