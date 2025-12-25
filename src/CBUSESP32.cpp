@@ -84,6 +84,7 @@ bool CBUSESP32::begin(bool poll, SPIClass& spi) {
 
   // configure CAN bus driver
   twai_general_config_t g_config;
+  memset(&g_config, 0, sizeof(g_config));
 
   g_config.mode = TWAI_MODE_NORMAL;
   g_config.tx_io = (gpio_num_t)_txPin;
